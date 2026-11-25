@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>מאנצ'קין לייב - לוח קרב משותף</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0a1f;
+      --glass: rgba(255,255,255,0.06);
+      --glass-strong: rgba(255,255,255,0.1);
+      --line: rgba(255,255,255,0.12);
+      --text: #fbf8ff;
+      --muted: #b4acd0;
+      --pink: #ff3d9a;
+      --orange: #ff9f1c;
+      --yellow: #ffe14d;
+      --cyan: #22d3ee;
+      --violet: #8b5cf6;
+      --lime: #a3e635;
+      --red: #ff4d6d;
+      --grad-hot: linear-gradient(135deg, #ff3d9a 0%, #ff9f1c 100%);
+      --grad-cool: linear-gradient(135deg, #22d3ee 0%, #8b5cf6 100%);
+      --grad-lime: linear-gradient(135deg, #a3e635 0%, #22d3ee 100%);
+    }
+    * { box-sizing: border-box; font-family: "Rubik", system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+    html, body { min-height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); margin: 0; padding: 14px 12px 40px;
+      display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
+    }
+    body::before, body::after {
+      content: ""; position: fixed; z-index: -1; width: 70vmax; height: 70vmax; border-radius: 50%;
+      filter: blur(80px); opacity: 0.45; pointer-events: none;
+    }
+    body::before { background: radial-gradient(circle, #8b5cf6 0%, transparent 60%); top: -30vmax; right: -25vmax; animation: drift 14s ease-in-out infinite alternate; }
+    body::after  { background: radial-gradient(circle, #ff3d9a 0%, transparent 60%); bottom: -35vmax; left: -25vmax; animation: drift 18s ease-in-out infinite alternate-reverse; }
+    @keyframes drift { to { transform: translate(8vmax, 6vmax) scale(1.15); } }
+
+    .app { width: 100%; max-width: 480px; }
+    .logo { text-align: center; margin: 4px 0 18px; }
+    .logo h1 {
+      margin: 0; font-size: 38px; font-weight: 900; letter-spacing: -0.5px; line-height: 1.05;
+      background: linear-gradient(90deg, #ffe14d, #ff9f1c, #ff3d9a, #8b5cf6, #22d3ee, #ffe14d);
+      background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+      animation: shine 8s linear infinite;
+    }
+    .logo .sub { color: var(--muted); font-size: 13px; margin-top: 4px; letter-spacing: 1px; }
+    @keyframes shine { to { background-position: 300% 0; } }
+
+    .glass {
+      background: var(--glass); border: 1px solid var(--line); border-radius: 22px; padding: 16px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35); margin-bottom: 14px;
+    }
+    input, select {
+      width: 100%; padding: 13px 14px; border-radius: 14px; border: 1px solid var(--line);
+      background: rgba(0,0,0,0.3); color: var(--text); font-size: 16px; outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(34,211,238,0.2); }
+    select { appearance: none; -webkit-appearance: none; cursor: pointer;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: 16px 50%, 11px 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-left: 30px; }
+    select option { background: #1b1535; color: var(--text); }
+
+    button {
+      cursor: pointer; border: none; border-radius: 14px; padding: 13px 16px; font-size: 16px; font-weight: 700;
+      color: #1a0b14; background: var(--grad-hot); box-shadow: 0 6px 18px rgba(255,61,154,0.35);
+      transition: transform .12s, filter .2s, box-shadow .2s;
+    }
+    button:active { transform: scale(0.96); filter: brightness(1.1); }
+    .btn-cool { background: var(--grad-cool); color: #fff; box-shadow: 0 6px 18px rgba(139,92,246,0.35); }
+    .btn-lime { background: var(--grad-lime); color: #0c1a05; box-shadow: 0 6px 18px rgba(163,230,53,0.3); }
+    .btn-ghost { background: var(--glass-strong); color: var(--text); box-shadow: none; border: 1px solid var(--line); }
+    .btn-red { background: linear-gradient(135deg, #ff4d6d, #c026d3); color: #fff; box-shadow: 0 6px 18px rgba(255,77,109,0.35); }
+    .w100 { width: 100%; }
+
+    .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 6px 0; }
+    .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+    .error { color: #ff8fab; font-size: 13px; min-height: 16px; text-align: center; }
+
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .code-pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+      background: var(--glass-strong); border: 1px solid var(--line); font-size: 13px; color: var(--muted); cursor: pointer;
+    }
+    .code-pill b { font-size: 18px; letter-spacing: 4px; color: var(--yellow); font-weight: 900; }
+    .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted);
+      padding: 8px 12px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+    .dot.online { background: var(--lime); box-shadow: 0 0 10px var(--lime); }
+    .dot.offline { background: var(--red); box-shadow: 0 0 10px var(--red); }
+    .notice { background: rgba(255,225,77,0.1); border: 1px solid rgba(255,225,77,0.35); color: #ffe98a;
+      padding: 10px 12px; border-radius: 14px; font-size: 13px; margin-bottom: 12px; }
+
+    /* player cards */
+    .player { position: relative; overflow: hidden; padding-top: 18px; }
+    .player::before {
+      content: ""; position: absolute; inset: 0 0 auto 0; height: 5px;
+      background: linear-gradient(90deg, hsl(var(--h) 95% 60%), hsl(calc(var(--h) + 60) 95% 62%));
+    }
+    .player.me { border-color: hsl(var(--h) 90% 60% / 0.6); box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 0 0 1px hsl(var(--h) 90% 60% / 0.35), 0 0 30px hsl(var(--h) 90% 60% / 0.18); }
+    .p-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .avatar {
+      width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; display: grid; place-items: center;
+      font-size: 20px; font-weight: 900; color: #fff;
+      background: linear-gradient(135deg, hsl(var(--h) 90% 58%), hsl(calc(var(--h) + 50) 90% 55%));
+      box-shadow: 0 4px 14px hsl(var(--h) 90% 50% / 0.45);
+    }
+    .p-name { font-size: 19px; font-weight: 700; line-height: 1.2; }
+    .p-name small { color: var(--muted); font-weight: 400; font-size: 13px; }
+    .power { text-align: center; min-width: 64px; }
+    .power .n {
+      font-size: 34px; font-weight: 900; line-height: 1;
+      background: linear-gradient(180deg, #fff, hsl(var(--h) 95% 70%)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .power .l { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px;
+      font-size: 13px; font-weight: 500; border: 1px solid transparent;
+    }
+    .chip.race { background: rgba(34,211,238,0.14); color: #7ee8f7; border-color: rgba(34,211,238,0.3); }
+    .chip.cls { background: rgba(255,159,28,0.14); color: #ffc46b; border-color: rgba(255,159,28,0.3); }
+    .chip.flag { background: rgba(139,92,246,0.18); color: #c4b1ff; border-color: rgba(139,92,246,0.35); }
+    .chip.fight { background: rgba(255,77,109,0.18); color: #ff8fab; border-color: rgba(255,77,109,0.4); }
+    .chip.help { background: rgba(163,230,53,0.16); color: #c7f27a; border-color: rgba(163,230,53,0.35); }
+
+    .stat-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px;
+      background: rgba(0,0,0,0.25); border: 1px solid var(--line); padding: 8px 10px 8px 8px; border-radius: 16px; }
+    .stat-row .label { font-size: 14px; color: var(--muted); }
+    .stat-row .val { font-size: 22px; font-weight: 900; color: var(--text); margin-right: 6px; }
+    .counter { display: flex; gap: 8px; }
+    .counter button { width: 40px; height: 40px; padding: 0; border-radius: 12px; font-size: 22px; line-height: 1; }
+    .counter .minus { background: var(--glass-strong); color: var(--text); box-shadow: none; border: 1px solid var(--line); }
+
+    .pick-block { margin-top: 12px; padding: 10px; border-radius: 16px; background: rgba(0,0,0,0.2); border: 1px solid var(--line); }
+    .pick-title { font-size: 12px; color: var(--muted); letter-spacing: 1px; margin: 0 2px 8px; }
+    .pick-line { display: flex; gap: 8px; align-items: stretch; }
+    .pick-line + .pick-line { margin-top: 8px; }
+    .pick-line select { flex: 1; }
+    .toggle {
+      flex-shrink: 0; padding: 0 12px; font-size: 13px; font-weight: 700; border-radius: 14px; white-space: nowrap;
+      background: var(--glass-strong); color: var(--muted); border: 1px dashed rgba(255,255,255,0.25); box-shadow: none;
+    }
+    .toggle.on.half { background: linear-gradient(135deg, #22d3ee, #3b82f6); color: #fff; border: 1px solid transparent; box-shadow: 0 4px 14px rgba(34,211,238,0.35); }
+    .toggle.on.super { background: linear-gradient(135deg, #ffe14d, #ff3d9a); color: #2a0a1a; border: 1px solid transparent; box-shadow: 0 4px 14px rgba(255,61,154,0.35); }
+    .extra { animation: pop .25s ease-out; }
+    @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+
+    /* battle */
+    .battle {
+      position: relative; border-radius: 24px; padding: 18px 16px 16px; margin-bottom: 16px; overflow: hidden;
+      background: linear-gradient(160deg, rgba(255,77,109,0.22), rgba(139,92,246,0.22));
+      border: 1px solid rgba(255,77,109,0.5); animation: glow 1.8s ease-in-out infinite alternate;
+    }
+    @keyframes glow { from { box-shadow: 0 0 10px rgba(255,77,109,0.3); } to { box-shadow: 0 0 34px rgba(255,61,154,0.6); } }
+    .battle h2 { margin: 0; text-align: center; font-size: 22px; font-weight: 900; }
+    .battle .who { text-align: center; color: var(--muted); font-size: 14px; margin: 4px 0 12px; }
+    .battle .who b { color: #fff; }
+    .vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .side { text-align: center; padding: 12px 6px; border-radius: 18px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); }
+    .side .t { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+    .side .n { font-size: 44px; font-weight: 900; line-height: 1.1; }
+    .side.heroes .n { color: #c7f27a; text-shadow: 0 0 18px rgba(163,230,53,0.5); }
+    .side.monster .n { color: #ff8fab; text-shadow: 0 0 18px rgba(255,77,109,0.5); }
+    .vs-badge { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 15px;
+      background: var(--grad-hot); color: #1a0b14; box-shadow: 0 0 20px rgba(255,61,154,0.6); }
+    .result { font-size: 17px; font-weight: 700; text-align: center; margin: 12px 0 8px; padding: 10px; border-radius: 14px; }
+    .result.win { background: rgba(163,230,53,0.16); color: #d4f79a; border: 1px solid rgba(163,230,53,0.4); }
+    .result.lose { background: rgba(255,77,109,0.16); color: #ffb3c4; border: 1px solid rgba(255,77,109,0.4); }
+    .battle .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .waiting { text-align: center; color: var(--muted); font-size: 14px; margin: 4px 0 14px; }
+    .waiting b { color: var(--yellow); letter-spacing: 3px; }
+
+    /* manager mode */
+    .btn-sun { background: linear-gradient(135deg, #ffe14d, #a3e635); color: #1a1a05; box-shadow: 0 6px 18px rgba(255,225,77,0.3); }
+    .hint { color: var(--muted); font-size: 12px; text-align: center; margin-top: -2px; }
+    .mode-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
+      background: linear-gradient(135deg, rgba(255,225,77,0.2), rgba(163,230,53,0.2)); border: 1px solid rgba(255,225,77,0.4);
+      color: #ffe98a; font-size: 14px; font-weight: 700; }
+    .card-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .card-actions button { flex: 1; padding: 11px 10px; font-size: 14px; }
+    .del-btn { width: 34px; height: 34px; padding: 0; border-radius: 10px; font-size: 15px; flex-shrink: 0;
+      background: rgba(255,77,109,0.15); color: #ff8fab; border: 1px solid rgba(255,77,109,0.35); box-shadow: none; }
+    .add-row { display: flex; gap: 8px; }
+    .add-row input { flex: 1; }
+    .add-row button { flex-shrink: 0; padding: 0 18px; }
+    .bottom-actions { display: flex; gap: 8px; }
+    .bottom-actions button { flex: 1; }
+
+    /* potions & curses */
+    .pick-block.potions { border-color: rgba(34,211,238,0.3); background: linear-gradient(135deg, rgba(34,211,238,0.07), rgba(139,92,246,0.07)); }
+    .pick-block.curses { border-color: rgba(255,77,109,0.3); background: linear-gradient(135deg, rgba(255,77,109,0.07), rgba(80,20,60,0.15)); }
+    .item-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 7px 8px 7px 6px; border-radius: 12px;
+      background: rgba(0,0,0,0.28); border: 1px solid var(--line); animation: pop .2s ease-out; }
+    .item-name { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item-val { font-weight: 900; font-size: 15px; padding: 2px 8px; border-radius: 8px; flex-shrink: 0; }
+    .item-val.pos { color: #c7f27a; background: rgba(163,230,53,0.14); }
+    .item-val.neg { color: #ff8fab; background: rgba(255,77,109,0.16); }
+    .item-val.zero { color: var(--muted); background: rgba(255,255,255,0.06); font-weight: 500; font-size: 12px; }
+    .mini { padding: 7px 9px; font-size: 12px; border-radius: 10px; flex-shrink: 0; box-shadow: none; }
+    .mini.del { width: 30px; height: 30px; padding: 0; background: rgba(255,255,255,0.06); color: var(--muted); border: 1px solid var(--line); }
+    .add-item { display: flex; gap: 6px; }
+    .add-item input { flex: 1; min-width: 0; padding: 10px 12px; font-size: 15px; }
+    .add-item select { width: 78px; flex-shrink: 0; padding: 10px 26px 10px 8px; font-size: 15px; }
+    .add-item button { flex-shrink: 0; padding: 0 14px; font-size: 18px; border-radius: 12px; }
+    .chip.potion { background: rgba(34,211,238,0.12); color: #9eeefb; border-color: rgba(34,211,238,0.3); }
+    .chip.curse { background: rgba(255,77,109,0.14); color: #ffa3b8; border-color: rgba(255,77,109,0.35); }
+    .empty-note { color: var(--muted); font-size: 12px; margin: 0 2px 8px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="logo">
+      <h1>מאנצ'קין לייב</h1>
+      <div class="sub">⚔️ לוח קרב משותף · בזמן אמת ⚔️</div>
+    </div>
+
+    <div id="login-view" class="glass">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input type="text" id="input-name" maxlength="20" placeholder="איך קוראים לך במשחק?">
+        <button id="btn-create" class="w100">👑 פתח שולחן חדש</button>
+        <div class="divider">או הצטרף לחבר</div>
+        <input type="text" id="input-room" maxlength="4" placeholder="קוד שולחן" style="text-transform:uppercase; letter-spacing:6px; text-align:center; font-weight:700;">
+        <button class="btn-cool w100" id="btn-join">🚪 הצטרף לשולחן</button>
+        <div class="divider">או בלי חיבור</div>
+        <button class="btn-sun w100" id="btn-manager">🎲 אני מנהל/ת את כולם</button>
+        <div class="hint">מכשיר אחד על השולחן, את/ה מעדכן/ת את כל השחקנים</div>
+        <div id="login-error" class="error"></div>
+      </div>
+    </div>
+
+    <div id="game-view" style="display:none;">
+      <div class="topbar" id="online-topbar">
+        <div class="code-pill" id="code-pill" title="לחץ להעתקה">שולחן <b id="display-room-code">----</b></div>
+        <div class="conn"><span id="conn-dot" class="dot"></span><span id="conn-status">מתחבר…</span></div>
+      </div>
+      <div class="topbar" id="local-topbar" style="display:none; justify-content:center;">
+        <div class="mode-pill">🎲 מצב מנהל משחק</div>
+      </div>
+      <div id="solo-notice" class="notice" style="display:none;">מצב מקומי: אין חיבור משותף כרגע, הנתונים נשמרים רק במכשיר הזה.</div>
+
+      <div id="battle-area" class="battle" style="display:none;">
+        <h2>🔥 קרב פעיל! 🔥</h2>
+        <div class="who">לוחם/ת: <b id="battle-hero-name">-</b><span id="battle-helpers"></span></div>
+        <div class="vs">
+          <div class="side heroes"><div class="t">שחקנים</div><div class="n" id="b-hero-total">0</div></div>
+          <div class="vs-badge">VS</div>
+          <div class="side monster"><div class="t">מפלצת</div><div class="n" id="b-monster-total">0</div></div>
+        </div>
+        <div class="stat-row">
+          <span class="label">👹 כוח מפלצת <span class="val" id="b-monster-base">0</span></span>
+          <div class="counter">
+            <button class="minus" data-fight="base" data-d="-1">−</button>
+            <button data-fight="base" data-d="1">+</button>
+          </div>
+        </div>
+        <div class="stat-row">
+          <span class="label">🃏 תוספים למפלצת <span class="val" id="b-monster-mod">0</span></span>
+          <div class="counter">
+            <button class="minus" data-fight="mod" data-d="-1">−</button>
+            <button data-fight="mod" data-d="1">+</button>
+          </div>
+        </div>
+        <div class="stat-row">
+          <span class="label">🧪 תוספים לשחקנים <span class="val" id="b-hero-bonus">0</span></span>
+          <div class="counter">
+            <button class="minus" data-fight="hero" data-d="-1">−</button>
+            <button data-fight="hero" data-d="1">+</button>
+          </div>
+        </div>
+        <div id="battle-status-msg" class="result win">-</div>
+        <div class="actions">
+          <button id="btn-help" class="btn-lime w100" style="display:none;">🤝 אני עוזר/ת בקרב</button>
+          <button id="btn-end" class="btn-red w100" style="display:none;">🏁 סיום קרב</button>
+        </div>
+      </div>
+
+      <div id="me-container"></div>
+      <div id="others-container"></div>
+
+      <div id="local-add" class="glass" style="display:none;">
+        <div class="add-row">
+          <input type="text" id="input-new-player" maxlength="20" placeholder="שם של שחקן חדש">
+          <button id="btn-add-player" class="btn-lime">➕ הוסף</button>
+        </div>
+      </div>
+
+      <div class="bottom-actions">
+        <button id="btn-reset" class="btn-ghost" style="display:none;">🔄 משחק חדש</button>
+        <button id="btn-leave" class="btn-ghost">יציאה</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORE_KEY = "munchkin-live-v2";
+    const LOCAL_KEY = "munchkin-local-v1";
+    const PEER_PREFIX = "munchkin-live-tbl-";
+    const RACES = {
+      human: "🧑 בן אנוש", elf: "🧝 אלף", dwarf: "⛏️ גמד", halfling: "🍀 זוטון", orc: "👹 אורק", gnome: "🍄 ננס",
+      centaur: "🐎 קנטאור", lizard: "🦎 איש-לטאה", drow: "🌑 אלף אפל (דרו)", goblin: "👺 גובלין",
+      mutant: "☢️ מוטנט (חלל)", cyborg: "🤖 סייבורג (חלל)", felinoid: "🐱 חתולאי (חלל)", insectoid: "🪲 חרקאי (חלל)"
+    };
+    const CLASSES = {
+      none: "ללא מקצוע", warrior: "⚔️ לוחם", wizard: "🔮 אשף", cleric: "✨ כוהן", thief: "🗝️ נוכל", bard: "🎻 פייטן",
+      ranger: "🏹 סייר", monk: "🥋 נזיר", bounty: "🎯 צייד ראשים (חלל)", gadgeteer: "🔧 גאדג'טיר (חלל)",
+      merchant: "💰 סוחר (חלל)", psychic: "🧠 על-חושי (חלל)", spaceninja: "🥷 נינג'ת חלל (חלל)"
+    };
+    const MAX_ITEMS = 15;
+
+    // ---------- helpers ----------
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const num = (x, lo = -999, hi = 999) => { const n = Math.trunc(Number(x)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : 0; };
+    const cleanText = (s, max) => String(s || "").replace(/[\u0000-\u001f​-‏‪-‮⁠-⁯]/g, "").trim().slice(0, max);
+    const cleanName = (s) => cleanText(s, 20);
+    const okRace = (r) => Object.prototype.hasOwnProperty.call(RACES, r) ? r : null;
+    const okCls = (c) => Object.prototype.hasOwnProperty.call(CLASSES, c) ? c : null;
+    const hue = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.codePointAt(0)) % 360; return h; };
+    const newId = () => Math.random().toString(36).slice(2, 10);
+    const signed = (n) => "\u2066" + (n > 0 ? "+" : "") + n + "\u2069";
+
+    function cleanItems(arr, field, lo, hi) {
+      if (!Array.isArray(arr)) return [];
+      return arr.slice(0, MAX_ITEMS).map(it => ({
+        id: typeof it?.id === "string" ? it.id.slice(0, 12) : newId(),
+        name: cleanText(it?.name, 24) || (field === "bonus" ? "שיקוי" : "קללה"),
+        [field]: num(it?.[field], lo, hi)
+      }));
+    }
+
+    const freshPlayer = (name) => ({ name: name || "", level: 1, gear: 0, race: "human", race2: null, half: false, cls: "none", cls2: null, sup: false, potions: [], curses: [] });
+
+    function sanitizePlayer(p) {
+      const o = freshPlayer(cleanName(p && p.name));
+      if (!p) return o;
+      o.level = num(p.level, 1, 99); o.gear = num(p.gear);
+      o.race = okRace(p.race) || "human"; o.half = !!(p.half || p.race2); o.race2 = o.half ? (okRace(p.race2) || "elf") : null;
+      o.cls = okCls(p.cls) || "none"; o.sup = !!p.sup; o.cls2 = o.sup ? (okCls(p.cls2) || "none") : null;
+      o.potions = cleanItems(p.potions, "bonus", -20, 20);
+      o.curses = cleanItems(p.curses, "power", -20, 20);
+      return o;
+    }
+    const power = (p) => p.level + p.gear + (p.curses || []).reduce((s, c) => s + c.power, 0);
+
+    // ---------- state ----------
+    let mode = null;                 // "online" | "local"
+    let me = freshPlayer();
+    let myBattle = null, myFight = null, myHelp = null;
+    let code = "", net = null;
+    let localPlayers = [];
+    let localBattle = null;          // { heroId, helpers, base, mod, hero }
+    let resetArmed = false;
+
+    function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...me, code })); } catch (e) {} }
+    function load() { try { return JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) { return null; } }
+    function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ players: localPlayers, battle: localBattle })); } catch (e) {} }
+    function loadLocal() {
+      try {
+        const s = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null");
+        if (!s || !Array.isArray(s.players)) return;
+        localPlayers = s.players.map(p => ({ id: typeof p.id === "string" ? p.id : newId(), ...sanitizePlayer(p) })).filter(p => p.name);
+        const b = s.battle;
+        if (b && localPlayers.some(p => p.id === b.heroId)) {
+          localBattle = { heroId: b.heroId, helpers: Array.isArray(b.helpers) ? b.helpers.filter(id => localPlayers.some(p => p.id === id)) : [],
+            base: num(b.base, 0), mod: num(b.mod), hero: num(b.hero) };
+        }
+      } catch (e) {}
+    }
+
+    function genCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let c = "";
+      for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+      return c;
+    }
+
+    // =====================================================================
+    // Networking: two transports with the same shape
+    //   peers() -> [{ peer, isMe, sameTab, kind, presence }]
+    //   presence(obj), leave()
+    // 1) Claude "room" (inside claude.ai)   2) PeerJS (any normal web page)
+    // =====================================================================
+    const roomPromise = (async () => {
+      try { return (window.claude && typeof window.claude.use === "function") ? await window.claude.use("room") : null; }
+      catch (e) { return null; }
+    })();
+
+    async function connectRoom(roomCode, onChange, onStatus) {
+      const room = await roomPromise;
+      if (!room) return null;
+      let table;
+      try { table = await room.join("munchkin-" + roomCode.toLowerCase()); } catch (e) { return null; }
+      const unsubs = [];
+      unsubs.push(table.onPeers(() => onChange(), () => onStatus("solo")));
+      unsubs.push(table.onConnection((ok) => onStatus(ok ? "online" : "offline"), () => onStatus("solo")));
+      return {
+        kind: "room",
+        peers: () => table.peers(),
+        presence: (p) => table.presence(p).catch(() => {}),
+        leave: async () => { unsubs.forEach(u => { try { u(); } catch (e) {} }); try { await table.leave(); } catch (e) {} }
+      };
+    }
+
+    let peerLibPromise = null;
+    function loadPeerLib() {
+      if (window.Peer) return Promise.resolve(true);
+      if (!peerLibPromise) peerLibPromise = new Promise((res) => {
+        const s = document.createElement("script");
+        s.src = "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js";
+        s.onload = () => res(!!window.Peer); s.onerror = () => res(false);
+        document.head.appendChild(s);
+        setTimeout(() => res(!!window.Peer), 12000);
+      });
+      return peerLibPromise;
+    }
+
+    // Star network: one phone holds the table id and relays everyone's state.
+    // If that phone drops, the first one to reconnect takes over the table.
+    async function connectPeer(roomCode, onChange, onStatus) {
+      if (!(await loadPeerLib())) return null;
+      const hostId = PEER_PREFIX + roomCode;
+      let peer = null, hostConn = null, isHost = false, closed = false;
+      let members = {}, selfKey = null, myPres = {}, conns = {}, attempts = 0, retryTimer = null;
+
+      const broadcast = () => {
+        const all = { ...members, [selfKey]: myPres };
+        Object.values(conns).forEach(c => { if (c.open) { try { c.send({ t: "s", members: all, you: c.peer }); } catch (e) {} } });
+        onChange();
+      };
+      const scheduleRetry = (ms) => {
+        if (closed) return;
+        clearTimeout(retryTimer);
+        retryTimer = setTimeout(() => tryConnect(), ms);
+      };
+      const reset = () => {
+        try { peer && peer.destroy(); } catch (e) {}
+        peer = null; hostConn = null; isHost = false; conns = {}; members = {};
+      };
+
+      function becomeHost() {
+        reset();
+        peer = new Peer(hostId);
+        peer.on("open", () => {
+          isHost = true; attempts = 0; selfKey = hostId; members = {};
+          onStatus("online"); broadcast();
+        });
+        peer.on("connection", (c) => {
+          conns[c.peer] = c;
+          c.on("data", (d) => { if (d && d.t === "p" && d.p && typeof d.p === "object") { members[c.peer] = d.p; broadcast(); } });
+          c.on("open", () => broadcast());
+          c.on("close", () => { delete conns[c.peer]; delete members[c.peer]; broadcast(); });
+          c.on("error", () => {});
+        });
+        peer.on("disconnected", () => { try { peer.reconnect(); } catch (e) {} });
+        peer.on("error", (err) => {
+          if (closed) return;
+          if (err.type === "unavailable-id") { scheduleRetry(300 + Math.random() * 700); }   // someone else is host → join them
+          else if (!isHost) { onStatus("offline"); scheduleRetry(3000); }
+        });
+      }
+
+      function becomeClient() {
+        reset();
+        peer = new Peer();
+        peer.on("open", (id) => {
+          selfKey = id;
+          hostConn = peer.connect(hostId, { reliable: true });
+          hostConn.on("open", () => { attempts = 0; onStatus("online"); hostConn.send({ t: "p", p: myPres }); });
+          hostConn.on("data", (d) => {
+            if (d && d.t === "s" && d.members && typeof d.members === "object") { members = d.members; selfKey = d.you || selfKey; onChange(); }
+          });
+          hostConn.on("close", () => { if (closed) return; onStatus("offline"); members = {}; onChange(); scheduleRetry(800 + Math.random() * 1500); });
+        });
+        peer.on("error", (err) => {
+          if (closed) return;
+          if (err.type === "peer-unavailable") becomeHost();     // nobody holds the table → I open it
+          else { onStatus("offline"); scheduleRetry(3000); }
+        });
+      }
+
+      function tryConnect() {
+        if (closed) return;
+        attempts++;
+        if (attempts > 6) { onStatus("offline"); attempts = 0; scheduleRetry(8000); return; }
+        becomeClient();
+      }
+
+      tryConnect();
+      return {
+        kind: "peer",
+        peers: () => Object.entries(isHost ? { ...members, [selfKey]: myPres } : members)
+          .map(([k, v]) => ({ peer: k, isMe: k === selfKey, sameTab: k === selfKey, kind: "viewer", presence: v || {} })),
+        presence: (p) => {
+          myPres = JSON.parse(JSON.stringify(p));
+          if (isHost) broadcast();
+          else if (hostConn && hostConn.open) { try { hostConn.send({ t: "p", p: myPres }); } catch (e) {} }
+        },
+        leave: async () => { closed = true; clearTimeout(retryTimer); reset(); }
+      };
+    }
+
+    // ---------- enter / leave ----------
+    function showGame() {
+      $("login-view").style.display = "none";
+      $("game-view").style.display = "block";
+      const local = mode === "local";
+      $("online-topbar").style.display = local ? "none" : "flex";
+      $("local-topbar").style.display = local ? "flex" : "none";
+      $("local-add").style.display = local ? "block" : "none";
+      $("btn-reset").style.display = local ? "block" : "none";
+      $("solo-notice").style.display = "none";
+      $("me-container").innerHTML = ""; $("others-container").innerHTML = "";
+      lastMeHtml = "";
+    }
+
+    async function enter(roomCode, fresh) {
+      const name = cleanName($("input-name").value);
+      if (!name) { $("login-error").textContent = "נא להזין שם"; return; }
+      if (!/^[A-Z0-9]{4}$/.test(roomCode)) { $("login-error").textContent = "קוד שולחן צריך להיות 4 תווים"; return; }
+      $("login-error").textContent = "";
+      const prev = load();
+      const keepStats = !fresh && prev && prev.code === roomCode;
+      me = sanitizePlayer(prev);
+      if (!keepStats) { me.level = 1; me.gear = 0; me.potions = []; me.curses = []; }
+      me.name = name; code = roomCode;
+      myBattle = null; myFight = null; myHelp = null;
+      save();
+
+      mode = "online";
+      showGame();
+      $("display-room-code").textContent = code;
+      setConn("connecting");
+      render();
+
+      const onChange = () => render();
+      const onStatus = (s) => setConn(s);
+      let n = await connectRoom(code, onChange, onStatus);
+      if (!n) n = await connectPeer(code, onChange, onStatus);
+      if (mode !== "online" || code !== roomCode) { if (n) n.leave(); return; }
+      net = n;
+      if (!net) { setConn("solo"); return; }
+      sync();
+    }
+
+    function enterManager() {
+      $("login-error").textContent = "";
+      loadLocal();
+      const name = cleanName($("input-name").value);
+      if (localPlayers.length === 0 && name) localPlayers.push({ id: newId(), ...freshPlayer(name) });
+      mode = "local";
+      showGame();
+      saveLocal();
+      render();
+    }
+
+    async function leave() {
+      if (net) { const n = net; net = null; await n.leave(); }
+      if (mode === "online") { code = ""; save(); }
+      mode = null;
+      $("game-view").style.display = "none";
+      $("login-view").style.display = "block";
+    }
+
+    function setConn(state) {
+      if (mode !== "online") return;
+      $("solo-notice").style.display = state === "solo" ? "block" : "none";
+      $("conn-dot").className = "dot " + (state === "online" ? "online" : state === "offline" ? "offline" : "");
+      $("conn-status").textContent = { online: "מחובר", offline: "מתחבר מחדש…", solo: "מקומי", connecting: "מתחבר…" }[state];
+    }
+
+    function sync() {
+      save();
+      render();
+      if (!net) return;
+      net.presence({
+        name: me.name, level: me.level, gear: me.gear,
+        race: me.race, race2: me.half ? me.race2 : null, cls: me.cls, cls2: me.sup ? me.cls2 : null, sup: me.sup,
+        potions: me.potions, curses: me.curses,
+        battle: myBattle, fight: myFight, help: myHelp
+      });
+    }
+
+    function changed() { if (mode === "local") { saveLocal(); render(); } else sync(); }
+
+    // ---------- players & battle ----------
+    function getPlayers() {
+      if (mode === "local") return localPlayers.map(p => ({ key: p.id, pid: p.id, editable: true, ...p, race2: p.half ? p.race2 : null, cls2: p.sup ? p.cls2 : null }));
+      const mine = { key: "me", pid: "me", isMe: true, editable: true, ...me, race2: me.half ? me.race2 : null, cls2: me.sup ? me.cls2 : null, battle: myBattle, fight: myFight, help: myHelp };
+      const out = [mine];
+      if (!net) return out;
+      for (const p of net.peers()) {
+        if ((p.isMe && p.sameTab) || p.kind !== "viewer") continue;
+        const pr = p.presence || {};
+        const base = sanitizePlayer(pr);
+        if (!base.name) continue;
+        out.push({
+          key: p.peer, isMe: false, editable: false, ...base,
+          race2: base.half ? base.race2 : null, cls2: base.sup ? base.cls2 : null,
+          battle: pr.battle && typeof pr.battle === "object" && typeof pr.battle.id === "string" ? { id: pr.battle.id.slice(0, 40), t: num(pr.battle.t, 0, 9e15) } : null,
+          fight: pr.fight && typeof pr.fight === "object" && typeof pr.fight.id === "string" ? { id: pr.fight.id, base: num(pr.fight.base), mod: num(pr.fight.mod), hero: num(pr.fight.hero) } : null,
+          help: typeof pr.help === "string" ? pr.help : null
+        });
+      }
+      return out;
+    }
+
+    function currentBattle(players) {
+      let hero, helpers, base, mod, heroBonus, id;
+      if (mode === "local") {
+        if (!localBattle) return null;
+        hero = players.find(p => p.pid === localBattle.heroId);
+        if (!hero) return null;
+        id = "local";
+        helpers = players.filter(p => p !== hero && localBattle.helpers.includes(p.pid));
+        base = Math.max(0, localBattle.base); mod = localBattle.mod; heroBonus = localBattle.hero || 0;
+      } else {
+        hero = null;
+        for (const p of players) if (p.battle && (!hero || p.battle.t > hero.battle.t)) hero = p;
+        if (!hero) return null;
+        id = hero.battle.id;
+        base = 1; mod = 0; heroBonus = 0;
+        for (const p of players) if (p.fight && p.fight.id === id) { base += p.fight.base; mod += p.fight.mod; heroBonus += p.fight.hero || 0; }
+        base = Math.max(0, base);
+        helpers = players.filter(p => p !== hero && p.help === id);
+      }
+      const heroTotal = power(hero) + helpers.reduce((s, h) => s + power(h), 0) + heroBonus;
+      return { id, hero, helpers, base, mod, heroBonus, heroTotal, monsterTotal: base + mod };
+    }
+
+    const target = (pid) => pid === "me" ? me : localPlayers.find(p => p.id === pid);
+
+    // ---------- actions ----------
+    function modifyStat(pid, field, d) {
+      const t = target(pid); if (!t) return;
+      if (field === "level") t.level = num(t.level + d, 1, 99); else t.gear = num(t.gear + d);
+      changed();
+    }
+    function startBattle(pid) {
+      if (mode === "local") localBattle = { heroId: pid, helpers: [], base: 1, mod: 0, hero: 0 };
+      else { myBattle = { id: newId(), t: Date.now() }; myHelp = null; myFight = null; }
+      changed();
+    }
+    function addToBattle(field, d) {
+      if (mode === "local") {
+        if (!localBattle) return false;
+        localBattle[field] = num((localBattle[field] || 0) + d, field === "base" ? 0 : -999);
+        return true;
+      }
+      const b = currentBattle(getPlayers()); if (!b) return false;
+      if (!myFight || myFight.id !== b.id) myFight = { id: b.id, base: 0, mod: 0, hero: 0 };
+      myFight[field] = num((myFight[field] || 0) + d);
+      return true;
+    }
+    function adjustMonster(field, d) { if (addToBattle(field, d)) changed(); }
+    function toggleHelp(pid) {
+      if (mode === "local") {
+        if (!localBattle) return;
+        const i = localBattle.helpers.indexOf(pid);
+        if (i >= 0) localBattle.helpers.splice(i, 1); else localBattle.helpers.push(pid);
+      } else {
+        const b = currentBattle(getPlayers()); if (!b) return;
+        myHelp = myHelp === b.id ? null : b.id;
+      }
+      changed();
+    }
+    function endBattle() {
+      if (mode === "local") localBattle = null; else { myBattle = null; myFight = null; }
+      changed();
+    }
+
+    function addItem(pid, kind) {
+      const t = target(pid); if (!t) return;
+      const nameEl = document.querySelector(`[data-keep="${kind}-name-${pid}"]`);
+      const valEl = document.querySelector(`[data-keep="${kind}-val-${pid}"]`);
+      const list = kind === "pot" ? t.potions : t.curses;
+      if (list.length >= MAX_ITEMS) return;
+      const name = cleanText(nameEl && nameEl.value, 24) || (kind === "pot" ? "שיקוי" : "קללה");
+      const v = num(valEl && valEl.value, -20, 20);
+      list.push(kind === "pot" ? { id: newId(), name, bonus: v } : { id: newId(), name, power: v });
+      if (nameEl) nameEl.value = "";
+      changed();
+    }
+    function removeItem(pid, kind, itemId) {
+      const t = target(pid); if (!t) return;
+      if (kind === "pot") t.potions = t.potions.filter(x => x.id !== itemId);
+      else t.curses = t.curses.filter(x => x.id !== itemId);
+      changed();
+    }
+    function usePotion(pid, itemId, side) {
+      const t = target(pid); if (!t) return;
+      const pot = t.potions.find(x => x.id === itemId); if (!pot) return;
+      if (!addToBattle(side === "hero" ? "hero" : "mod", pot.bonus)) return;
+      t.potions = t.potions.filter(x => x.id !== itemId);
+      changed();
+    }
+
+    function addPlayer() {
+      const name = cleanName($("input-new-player").value);
+      if (!name) return;
+      localPlayers.push({ id: newId(), ...freshPlayer(name) });
+      $("input-new-player").value = "";
+      changed();
+    }
+    function removePlayer(pid) {
+      localPlayers = localPlayers.filter(p => p.id !== pid);
+      if (localBattle) {
+        if (localBattle.heroId === pid) localBattle = null;
+        else localBattle.helpers = localBattle.helpers.filter(id => id !== pid);
+      }
+      changed();
+    }
+    function resetGame() {
+      if (!resetArmed) {
+        resetArmed = true; $("btn-reset").textContent = "⚠️ לחץ שוב לאישור";
+        setTimeout(() => { resetArmed = false; $("btn-reset").textContent = "🔄 משחק חדש"; }, 3000);
+        return;
+      }
+      resetArmed = false; $("btn-reset").textContent = "🔄 משחק חדש";
+      localPlayers = localPlayers.map(p => ({ id: p.id, ...freshPlayer(p.name) }));
+      localBattle = null;
+      changed();
+    }
+
+    // ---------- render ----------
+    const options = (map, sel) => Object.entries(map).map(([k, v]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${v}</option>`).join("");
+    const numOptions = (from, to, sel, zeroLabel) => {
+      let o = "";
+      for (let i = from; i <= to; i++) o += `<option value="${i}" ${i === sel ? "selected" : ""}>${i === 0 && zeroLabel ? zeroLabel : signed(i)}</option>`;
+      return o;
+    };
+    const valClass = (v) => v > 0 ? "pos" : v < 0 ? "neg" : "zero";
+
+    function chipsFor(p, battle, withItems) {
+      const c = [];
+      c.push(`<span class="chip race">${RACES[p.race]}</span>`);
+      if (p.race2) c.push(`<span class="chip race">${RACES[p.race2]}</span>`, `<span class="chip flag">½ בן מחצה</span>`);
+      if (p.cls !== "none") c.push(`<span class="chip cls">${CLASSES[p.cls]}</span>`);
+      if (p.cls2 && p.cls2 !== "none") c.push(`<span class="chip cls">${CLASSES[p.cls2]}</span>`);
+      if (p.sup) c.push(`<span class="chip flag">⭐ סופר מאנצ'קין</span>`);
+      if (withItems) {
+        p.curses.forEach(x => c.push(`<span class="chip curse">💀 ${esc(x.name)}${x.power ? " " + signed(x.power) : ""}</span>`));
+        p.potions.forEach(x => c.push(`<span class="chip potion">🧪 ${esc(x.name)} ${signed(x.bonus)}</span>`));
+      }
+      if (battle && battle.hero === p) c.push(`<span class="chip fight">🔥 בקרב</span>`);
+      else if (battle && battle.helpers.includes(p)) c.push(`<span class="chip help">🤝 עוזר/ת</span>`);
+      return c.join("");
+    }
+
+    function headFor(p) {
+      const cursed = p.curses.reduce((s, c) => s + c.power, 0);
+      return `<div class="p-head">
+          <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+            <div class="avatar">${esc([...p.name][0] || "?")}</div>
+            <div class="p-name">${esc(p.name)} ${p.isMe ? "<small>(את/ה)</small>" : ""}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="power"><div class="n">${power(p)}</div><div class="l">כוח${cursed ? ` <span style="color:#ff8fab">(${signed(cursed)}💀)</span>` : ""}</div></div>
+            ${mode === "local" ? `<button class="del-btn" data-action="del" data-pid="${p.pid}" title="הסר שחקן">✕</button>` : ""}
+          </div>
+        </div>`;
+    }
+
+    function potionsBlock(p, battle) {
+      const pid = p.pid;
+      const rows = p.potions.map(x => `
+        <div class="item-row">
+          <span class="item-name">🧪 ${esc(x.name)}</span>
+          <span class="item-val ${valClass(x.bonus)}">${signed(x.bonus)}</span>
+          ${battle ? `<button class="mini btn-lime" data-action="usepot" data-side="hero" data-item="${x.id}" data-pid="${pid}">לשחקנים</button>
+                      <button class="mini btn-red" data-action="usepot" data-side="monster" data-item="${x.id}" data-pid="${pid}">למפלצת</button>` : ""}
+          <button class="mini del" data-action="delitem" data-kind="pot" data-item="${x.id}" data-pid="${pid}" title="מחק">✕</button>
+        </div>`).join("");
+      return `
+        <div class="pick-block potions">
+          <div class="pick-title">🧪 שיקויים ${battle && p.potions.length ? "· בקרב אפשר לזרוק לצד אחד" : ""}</div>
+          ${rows || `<div class="empty-note">אין שיקויים כרגע</div>`}
+          <div class="add-item">
+            <input type="text" maxlength="24" placeholder="שם השיקוי" data-keep="pot-name-${pid}">
+            <select data-keep="pot-val-${pid}">${numOptions(-10, 10, 2)}</select>
+            <button class="btn-cool" data-action="additem" data-kind="pot" data-pid="${pid}">+</button>
+          </div>
+        </div>`;
+    }
+
+    function cursesBlock(p) {
+      const pid = p.pid;
+      const rows = p.curses.map(x => `
+        <div class="item-row">
+          <span class="item-name">💀 ${esc(x.name)}</span>
+          <span class="item-val ${valClass(x.power)}">${x.power ? signed(x.power) : "בלי השפעה על כוח"}</span>
+          <button class="mini btn-ghost" data-action="delitem" data-kind="curse" data-item="${x.id}" data-pid="${pid}">הוסר ✓</button>
+        </div>`).join("");
+      return `
+        <div class="pick-block curses">
+          <div class="pick-title">💀 קללות פעילות</div>
+          ${rows || `<div class="empty-note">אין קללות (בינתיים 😈)</div>`}
+          <div class="add-item">
+            <input type="text" maxlength="24" placeholder="שם הקללה" data-keep="curse-name-${pid}">
+            <select data-keep="curse-val-${pid}">${numOptions(-10, 5, -1, "0")}</select>
+            <button class="btn-red" data-action="additem" data-kind="curse" data-pid="${pid}">+</button>
+          </div>
+        </div>`;
+    }
+
+    function editCard(p, battle) {
+      const pid = p.pid;
+      const inBattle = battle && battle.hero === p;
+      const helping = battle && battle.helpers.includes(p);
+      let actions = "";
+      if (mode === "local") {
+        if (!battle) actions = `<button class="btn-cool" data-action="start" data-pid="${pid}">🔥 נכנס/ת לקרב</button>`;
+        else if (!inBattle) actions = `<button class="${helping ? "btn-ghost" : "btn-lime"}" data-action="help" data-pid="${pid}">${helping ? "✋ מפסיק/ה לעזור" : "🤝 עוזר/ת בקרב"}</button>`;
+      } else if (!myBattle) {
+        actions = `<button class="btn-cool" data-action="start" data-pid="${pid}">🔥 נכנסתי לקרב!</button>`;
+      }
+      return `
+        <div class="glass player me" style="--h:${hue(p.name)}">
+          ${headFor(p)}
+          <div class="chips">${chipsFor(p, battle, false)}</div>
+          <div class="stat-row">
+            <span class="label">🎖️ דרגה <span class="val">${p.level}</span></span>
+            <div class="counter"><button class="minus" data-stat="level" data-d="-1" data-pid="${pid}">−</button><button data-stat="level" data-d="1" data-pid="${pid}">+</button></div>
+          </div>
+          <div class="stat-row">
+            <span class="label">🛡️ בונוס ציוד <span class="val">${p.gear}</span></span>
+            <div class="counter"><button class="minus" data-stat="gear" data-d="-1" data-pid="${pid}">−</button><button data-stat="gear" data-d="1" data-pid="${pid}">+</button></div>
+          </div>
+          <div class="pick-block">
+            <div class="pick-title">גזע</div>
+            <div class="pick-line">
+              <select data-pick="race" data-pid="${pid}">${options(RACES, p.race)}</select>
+              <button class="toggle half ${p.half ? "on" : ""}" data-toggle="half" data-pid="${pid}">½ בן מחצה</button>
+            </div>
+            ${p.half ? `<div class="pick-line extra"><select data-pick="race2" data-pid="${pid}">${options(RACES, p.race2)}</select></div>` : ""}
+          </div>
+          <div class="pick-block">
+            <div class="pick-title">מקצוע</div>
+            <div class="pick-line">
+              <select data-pick="cls" data-pid="${pid}">${options(CLASSES, p.cls)}</select>
+              <button class="toggle super ${p.sup ? "on" : ""}" data-toggle="sup" data-pid="${pid}">⭐ סופר מאנצ'קין</button>
+            </div>
+            ${p.sup ? `<div class="pick-line extra"><select data-pick="cls2" data-pid="${pid}">${options(CLASSES, p.cls2)}</select></div>` : ""}
+          </div>
+          ${potionsBlock(p, battle)}
+          ${cursesBlock(p)}
+          ${actions ? `<div class="card-actions">${actions}</div>` : ""}
+        </div>`;
+    }
+
+    function viewCard(p, battle) {
+      return `
+        <div class="glass player" style="--h:${hue(p.name)}">
+          ${headFor(p)}
+          <div class="chips">${chipsFor(p, battle, true)}</div>
+          <div class="stat-row"><span class="label">🎖️ דרגה <span class="val">${p.level}</span></span><span class="label">🛡️ ציוד <span class="val">${p.gear}</span></span></div>
+        </div>`;
+    }
+
+    // keep what's being typed (and focus) when a card is rebuilt
+    function replaceKeeping(container, html) {
+      const kept = {};
+      container.querySelectorAll("[data-keep]").forEach(el => kept[el.dataset.keep] = el.value);
+      const focused = document.activeElement && container.contains(document.activeElement) ? document.activeElement.dataset.keep : null;
+      container.innerHTML = html;
+      container.querySelectorAll("[data-keep]").forEach(el => { if (kept[el.dataset.keep] !== undefined) el.value = kept[el.dataset.keep]; });
+      if (focused) { const el = container.querySelector(`[data-keep="${focused}"]`); if (el) el.focus(); }
+    }
+
+    let lastMeHtml = "";
+    function render() {
+      if (!mode) return;
+      const players = getPlayers();
+      const battle = currentBattle(players);
+
+      if (mode === "local") {
+        replaceKeeping($("others-container"), players.map(p => editCard(p, battle)).join("")
+          + (players.length === 0 ? `<div class="waiting">הוסיפו שחקנים כדי להתחיל 👇</div>` : ""));
+      } else {
+        const meHtml = editCard(players[0], battle);
+        if (meHtml !== lastMeHtml) { replaceKeeping($("me-container"), meHtml); lastMeHtml = meHtml; }
+        const others = players.slice(1);
+        $("others-container").innerHTML = others.map(p => viewCard(p, battle)).join("")
+          + (others.length === 0 && net ? `<div class="waiting">מחכים לחברים… שתפו את הקוד <b>${esc(code)}</b></div>` : "");
+      }
+      renderBattle(battle);
+    }
+
+    function renderBattle(battle) {
+      const bView = $("battle-area");
+      if (!battle) { bView.style.display = "none"; return; }
+      bView.style.display = "block";
+      $("battle-hero-name").textContent = battle.hero.name;
+      $("battle-helpers").textContent = battle.helpers.length ? " + " + battle.helpers.map(h => h.name).join(", ") : "";
+      $("b-monster-base").textContent = battle.base;
+      $("b-monster-mod").textContent = battle.mod ? signed(battle.mod) : "0";
+      $("b-hero-bonus").textContent = battle.heroBonus ? signed(battle.heroBonus) : "0";
+      $("b-hero-total").textContent = battle.heroTotal;
+      $("b-monster-total").textContent = battle.monsterTotal;
+
+      const diff = battle.heroTotal - battle.monsterTotal;
+      const warrior = battle.hero.cls === "warrior" || battle.hero.cls2 === "warrior";
+      const st = $("battle-status-msg");
+      if (diff > 0) { st.className = "result win"; st.textContent = `🏆 ${battle.hero.name} מנצח/ת בהפרש של ${diff}!`; }
+      else if (diff === 0 && warrior) { st.className = "result win"; st.textContent = `⚔️ תיקו (${battle.heroTotal}) - לוחם מנצח בתיקו!`; }
+      else if (diff === 0) { st.className = "result lose"; st.textContent = `😬 תיקו (${battle.heroTotal}) - המפלצת מנצחת בתיקו!`; }
+      else { st.className = "result lose"; st.textContent = `👹 המפלצת מובילה בהפרש של ${-diff}`; }
+
+      const canEnd = mode === "local" || battle.hero.isMe;
+      $("btn-end").style.display = canEnd ? "block" : "none";
+      const showHelp = mode === "online" && !battle.hero.isMe;
+      $("btn-help").style.display = showHelp ? "block" : "none";
+      if (showHelp) {
+        $("btn-help").textContent = myHelp === battle.id ? "✋ הפסקתי לעזור" : "🤝 אני עוזר/ת בקרב";
+        $("btn-help").className = (myHelp === battle.id ? "btn-ghost" : "btn-lime") + " w100";
+      }
+    }
+
+    // ---------- wiring ----------
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      const pid = b.dataset.pid, a = b.dataset.action;
+      if (b.dataset.stat) modifyStat(pid, b.dataset.stat, +b.dataset.d);
+      else if (b.dataset.fight) adjustMonster(b.dataset.fight, +b.dataset.d);
+      else if (a === "start") startBattle(pid);
+      else if (a === "help") toggleHelp(pid);
+      else if (a === "del") removePlayer(pid);
+      else if (a === "additem") addItem(pid, b.dataset.kind);
+      else if (a === "delitem") removeItem(pid, b.dataset.kind, b.dataset.item);
+      else if (a === "usepot") usePotion(pid, b.dataset.item, b.dataset.side);
+      else if (b.dataset.toggle) {
+        const t = target(pid); if (!t) return;
+        if (b.dataset.toggle === "half") { t.half = !t.half; t.race2 = t.half ? (t.race === "elf" ? "dwarf" : "elf") : null; }
+        else { t.sup = !t.sup; t.cls2 = t.sup ? "none" : null; }
+        changed();
+      }
+    });
+    document.addEventListener("change", (e) => {
+      const s = e.target.closest("select[data-pick]"); if (!s) return;
+      const t = target(s.dataset.pid); if (!t) return;
+      const k = s.dataset.pick;
+      if (k === "race" || k === "race2") t[k] = okRace(s.value) || "human";
+      else t[k] = okCls(s.value) || "none";
+      changed();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const k = e.target.dataset && e.target.dataset.keep;
+      if (!k) return;
+      const m = k.match(/^(pot|curse)-name-(.+)$/);
+      if (m) addItem(m[2], m[1]);
+    });
+    $("btn-create").onclick = () => enter(genCode(), true);
+    $("btn-join").onclick = () => enter($("input-room").value.trim().toUpperCase(), false);
+    $("btn-manager").onclick = enterManager;
+    $("btn-end").onclick = endBattle;
+    $("btn-help").onclick = () => toggleHelp("me");
+    $("btn-leave").onclick = leave;
+    $("btn-reset").onclick = resetGame;
+    $("btn-add-player").onclick = addPlayer;
+    $("input-new-player").addEventListener("keydown", (e) => { if (e.key === "Enter") addPlayer(); });
+    $("code-pill").onclick = () => {
+      try { navigator.clipboard.writeText(code).then(() => {
+        const el = $("display-room-code"); el.textContent = "✓"; setTimeout(() => el.textContent = code, 1200);
+      }).catch(() => {}); } catch (e) {}
+    };
+    $("input-room").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-join").click(); });
+
+    const saved = load();
+    if (saved) { if (saved.name) $("input-name").value = saved.name; if (saved.code) $("input-room").value = saved.code; }
+  </script>
+</body>
+</html>
