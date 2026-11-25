@@ -212,6 +212,36 @@
     .chip.potion { background: rgba(34,211,238,0.12); color: #9eeefb; border-color: rgba(34,211,238,0.3); }
     .chip.curse { background: rgba(255,77,109,0.14); color: #ffa3b8; border-color: rgba(255,77,109,0.35); }
     .empty-note { color: var(--muted); font-size: 12px; margin: 0 2px 8px; }
+
+    /* share */
+    .share-btn { padding: 8px 14px; border-radius: 999px; font-size: 14px; background: var(--grad-cool); color: #fff; box-shadow: 0 4px 14px rgba(139,92,246,0.4); }
+    .share-box { display: none; margin-bottom: 12px; padding: 12px; border-radius: 16px; background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.4); }
+    .share-box .link { direction: ltr; text-align: left; font-size: 13px; word-break: break-all; color: #c4b1ff; background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 10px; margin: 6px 0 8px; user-select: all; -webkit-user-select: all; }
+    .invite { display: none; text-align: center; padding: 12px; border-radius: 16px; margin-bottom: 4px;
+      background: linear-gradient(135deg, rgba(34,211,238,0.15), rgba(139,92,246,0.2)); border: 1px solid rgba(34,211,238,0.4); }
+    .invite b { color: var(--yellow); letter-spacing: 3px; font-size: 18px; }
+
+    /* victory */
+    #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+    .victory { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; padding: 20px;
+      background: radial-gradient(circle at 50% 35%, rgba(255,225,77,0.25), rgba(13,10,31,0.92) 65%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    .victory.show { display: flex; animation: fadein .3s ease-out; }
+    @keyframes fadein { from { opacity: 0; } }
+    .v-card { width: 100%; max-width: 420px; text-align: center; padding: 26px 18px 18px; border-radius: 28px;
+      background: linear-gradient(160deg, rgba(255,225,77,0.18), rgba(255,61,154,0.18) 50%, rgba(139,92,246,0.22));
+      border: 1px solid rgba(255,225,77,0.5); box-shadow: 0 0 60px rgba(255,159,28,0.45); animation: bounce .6s cubic-bezier(.2,1.6,.4,1); }
+    @keyframes bounce { from { transform: scale(0.6); opacity: 0; } }
+    .v-crown { font-size: 64px; line-height: 1; animation: wobble 1.4s ease-in-out infinite; display: inline-block; }
+    @keyframes wobble { 0%,100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(8deg) scale(1.12); } }
+    .v-title { font-size: 15px; letter-spacing: 3px; color: #ffe98a; margin-top: 8px; }
+    .v-name { font-size: 40px; font-weight: 900; line-height: 1.15; margin: 4px 0 2px;
+      background: linear-gradient(90deg, #ffe14d, #ff9f1c, #ff3d9a, #ffe14d); background-size: 300% 100%;
+      -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 3s linear infinite; }
+    .v-sub { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+    .v-losers-title { font-size: 13px; color: var(--muted); margin: 14px 0 8px; letter-spacing: 1px; }
+    .v-losers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 18px; }
+    .v-loser { padding: 6px 12px; border-radius: 999px; background: rgba(255,77,109,0.15); border: 1px solid rgba(255,77,109,0.35); color: #ffb3c4; font-weight: 700; font-size: 14px; }
+    .v-actions { display: flex; flex-direction: column; gap: 8px; }
   </style>
 </head>
 <body>
@@ -223,6 +253,7 @@
 
     <div id="login-view" class="glass">
       <div style="display:flex; flex-direction:column; gap:10px;">
+        <div id="invite" class="invite">🎉 הוזמנת לשולחן <b id="invite-code"></b><br><span class="muted">כתוב/י את השם שלך ולחץ/י "הצטרף לשולחן"</span></div>
         <input type="text" id="input-name" maxlength="20" placeholder="איך קוראים לך במשחק?">
         <button id="btn-create" class="w100">👑 פתח שולחן חדש</button>
         <div class="divider">או הצטרף לחבר</div>
@@ -238,7 +269,13 @@
     <div id="game-view" style="display:none;">
       <div class="topbar" id="online-topbar">
         <div class="code-pill" id="code-pill" title="לחץ להעתקה">שולחן <b id="display-room-code">----</b></div>
+        <button class="share-btn" id="btn-share">🔗 שתף</button>
         <div class="conn"><span id="conn-dot" class="dot"></span><span id="conn-status">מתחבר…</span></div>
+      </div>
+      <div class="share-box" id="share-box">
+        <div style="font-weight:700;">📨 שלחו את הקישור, ומי שנכנס מצטרף ישר לשולחן:</div>
+        <div class="link" id="share-link"></div>
+        <button class="btn-cool w100" id="btn-copy-link">📋 העתק קישור</button>
       </div>
       <div class="topbar" id="local-topbar" style="display:none; justify-content:center;">
         <div class="mode-pill">🎲 מצב מנהל משחק</div>
@@ -298,6 +335,22 @@
     </div>
   </div>
 
+  <div class="victory" id="victory">
+    <div class="v-card">
+      <div class="v-crown">👑</div>
+      <div class="v-title">הגיע/ה לדרגה 10!</div>
+      <div class="v-name" id="v-name"></div>
+      <div class="v-sub">🏆 ניצח/ה במשחק! 🏆</div>
+      <div class="v-losers-title" id="v-losers-title">וכל השאר... 🤡 לוזרים 🤡</div>
+      <div class="v-losers" id="v-losers"></div>
+      <div class="v-actions">
+        <button id="btn-v-again" class="btn-sun w100" style="display:none;">🔄 משחק חדש</button>
+        <button id="btn-v-close" class="btn-ghost w100">סגור</button>
+      </div>
+    </div>
+  </div>
+  <canvas id="confetti"></canvas>
+
   <script>
     const STORE_KEY = "munchkin-live-v2";
     const LOCAL_KEY = "munchkin-local-v1";
@@ -340,7 +393,7 @@
     function sanitizePlayer(p) {
       const o = freshPlayer(cleanName(p && p.name));
       if (!p) return o;
-      o.level = num(p.level, 1, 99); o.gear = num(p.gear);
+      o.level = num(p.level, 1, 10); o.gear = num(p.gear);
       o.race = okRace(p.race) || "human"; o.half = !!(p.half || p.race2); o.race2 = o.half ? (okRace(p.race2) || "elf") : null;
       o.cls = okCls(p.cls) || "none"; o.sup = !!p.sup; o.cls2 = o.sup ? (okCls(p.cls2) || "none") : null;
       o.potions = cleanItems(p.potions, "bonus", -20, 20);
@@ -535,6 +588,8 @@
       mode = "online";
       showGame();
       $("display-room-code").textContent = code;
+      $("share-box").style.display = "none";
+      try { history.replaceState(null, "", "#table-" + code); } catch (e) {}
       setConn("connecting");
       render();
 
@@ -563,6 +618,9 @@
       if (net) { const n = net; net = null; await n.leave(); }
       if (mode === "online") { code = ""; save(); }
       mode = null;
+      shownWinner = null;
+      hideVictory();
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
       $("game-view").style.display = "none";
       $("login-view").style.display = "block";
     }
@@ -638,7 +696,7 @@
     // ---------- actions ----------
     function modifyStat(pid, field, d) {
       const t = target(pid); if (!t) return;
-      if (field === "level") t.level = num(t.level + d, 1, 99); else t.gear = num(t.gear + d);
+      if (field === "level") t.level = num(t.level + d, 1, 10); else t.gear = num(t.gear + d);
       changed();
     }
     function startBattle(pid) {
@@ -723,6 +781,7 @@
       }
       resetArmed = false; $("btn-reset").textContent = "🔄 משחק חדש";
       localPlayers = localPlayers.map(p => ({ id: p.id, ...freshPlayer(p.name) }));
+      shownWinner = null;
       localBattle = null;
       changed();
     }
@@ -889,6 +948,7 @@
           + (others.length === 0 && net ? `<div class="waiting">מחכים לחברים… שתפו את הקוד <b>${esc(code)}</b></div>` : "");
       }
       renderBattle(battle);
+      checkWinner(players);
     }
 
     function renderBattle(battle) {
@@ -971,8 +1031,104 @@
     };
     $("input-room").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-join").click(); });
 
+    // ---------- share link ----------
+    const inClaude = !!(window.claude && typeof window.claude.use === "function");
+    function shareUrl() { return location.href.split("#")[0] + "#table-" + code; }
+    $("btn-share").onclick = async () => {
+      const url = shareUrl();
+      const text = `בואו לשחק מאנצ'קין! ⚔️ שולחן ${code}`;
+      if (!inClaude && navigator.share) {
+        try { await navigator.share({ title: "מאנצ'קין לייב", text, url }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+      }
+      const box = $("share-box");
+      $("share-link").textContent = inClaude ? `קוד השולחן: ${code}` : url;
+      box.style.display = box.style.display === "block" ? "none" : "block";
+    };
+    $("btn-copy-link").onclick = () => {
+      const txt = inClaude ? code : shareUrl();
+      try { navigator.clipboard.writeText(txt).then(() => {
+        $("btn-copy-link").textContent = "✓ הועתק!"; setTimeout(() => $("btn-copy-link").textContent = "📋 העתק קישור", 1500);
+      }).catch(() => {}); } catch (e) {}
+    };
+
+    // ---------- victory ----------
+    let shownWinner = null;
+    function checkWinner(players) {
+      const winner = players.find(p => p.level >= 10);
+      if (!winner) { shownWinner = null; return; }
+      const key = winner.key + ":" + winner.name;
+      if (shownWinner === key) return;
+      shownWinner = key;
+      showVictory(winner, players.filter(p => p !== winner));
+    }
+    function showVictory(winner, losers) {
+      $("v-name").textContent = winner.name + (winner.isMe ? " (את/ה!)" : "");
+      $("v-losers").innerHTML = losers.map(p => `<span class="v-loser">🤡 ${esc(p.name)}</span>`).join("");
+      $("v-losers-title").style.display = losers.length ? "block" : "none";
+      $("btn-v-again").style.display = mode === "local" ? "block" : "none";
+      $("victory").classList.add("show");
+      startConfetti();
+    }
+    function hideVictory() { $("victory").classList.remove("show"); stopConfetti(); }
+    $("btn-v-close").onclick = hideVictory;
+    $("btn-v-again").onclick = () => { hideVictory(); resetArmed = true; resetGame(); };
+
+    let confettiRaf = null, confettiStop = 0;
+    function startConfetti() {
+      const cv = $("confetti"), ctx = cv.getContext("2d");
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const resize = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; };
+      resize();
+      const colors = ["#ffe14d", "#ff9f1c", "#ff3d9a", "#8b5cf6", "#22d3ee", "#a3e635", "#ffffff"];
+      const parts = [];
+      const burst = (n) => {
+        for (let i = 0; i < n; i++) parts.push({
+          x: Math.random() * cv.width, y: -20 * dpr - Math.random() * cv.height * 0.5,
+          vx: (Math.random() - 0.5) * 3 * dpr, vy: (2 + Math.random() * 4) * dpr,
+          w: (6 + Math.random() * 8) * dpr, h: (8 + Math.random() * 10) * dpr,
+          r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3,
+          c: colors[Math.floor(Math.random() * colors.length)], round: Math.random() < 0.3
+        });
+      };
+      burst(220);
+      confettiStop = performance.now() + 6000;
+      let lastBurst = performance.now();
+      cancelAnimationFrame(confettiRaf);
+      const tick = (now) => {
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (now < confettiStop && now - lastBurst > 900) { burst(60); lastBurst = now; }
+        for (let i = parts.length - 1; i >= 0; i--) {
+          const p = parts[i];
+          p.x += p.vx; p.y += p.vy; p.vy += 0.04 * dpr; p.vx *= 0.995; p.r += p.vr;
+          if (p.y > cv.height + 40) { parts.splice(i, 1); continue; }
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+          if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill(); }
+          else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2)) + 2);
+          ctx.restore();
+        }
+        if (parts.length) confettiRaf = requestAnimationFrame(tick); else ctx.clearRect(0, 0, cv.width, cv.height);
+      };
+      confettiRaf = requestAnimationFrame(tick);
+    }
+    function stopConfetti() {
+      cancelAnimationFrame(confettiRaf); confettiRaf = null;
+      const cv = $("confetti"); cv.getContext("2d").clearRect(0, 0, cv.width, cv.height);
+    }
+
+    // ---------- startup: open a shared link straight into its table ----------
     const saved = load();
     if (saved) { if (saved.name) $("input-name").value = saved.name; if (saved.code) $("input-room").value = saved.code; }
+    const invited = (location.hash.match(/^#table-([A-Za-z0-9]{4})$/) || [])[1];
+    if (invited) {
+      const c = invited.toUpperCase();
+      $("input-room").value = c;
+      if (saved && cleanName(saved.name)) enter(c, false);
+      else {
+        $("invite-code").textContent = c;
+        $("invite").style.display = "block";
+        $("input-name").focus();
+      }
+    }
   </script>
 </body>
 </html>
