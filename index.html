@@ -221,6 +221,30 @@
       background: linear-gradient(135deg, rgba(34,211,238,0.15), rgba(139,92,246,0.2)); border: 1px solid rgba(34,211,238,0.4); }
     .invite b { color: var(--yellow); letter-spacing: 3px; font-size: 18px; }
 
+    /* dice */
+    .dice-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .dice-head h3 { margin: 0; font-size: 18px; font-weight: 900; }
+    .dice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+    .die-tile { text-align: center; padding: 10px 6px 8px; border-radius: 18px; background: rgba(0,0,0,0.28); border: 1px solid var(--line); transition: box-shadow .3s, border-color .3s; }
+    .die-tile.best { border-color: rgba(255,225,77,0.7); box-shadow: 0 0 18px rgba(255,225,77,0.45); }
+    .die-tile .who { font-size: 13px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .die-tile .by { font-size: 10px; color: var(--muted); min-height: 13px; }
+    .die {
+      width: 54px; height: 54px; margin: 0 auto; border-radius: 13px; padding: 7px; display: grid;
+      grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+      background: linear-gradient(145deg, #ffffff, #e9e2ff); box-shadow: 0 6px 16px rgba(0,0,0,0.45), inset 0 -3px 0 rgba(0,0,0,0.12);
+    }
+    .die.empty { background: rgba(255,255,255,0.08); box-shadow: none; border: 2px dashed rgba(255,255,255,0.2); display: grid; place-items: center; grid-template-columns: 1fr; grid-template-rows: 1fr; color: var(--muted); font-size: 22px; }
+    .die .pip { width: 10px; height: 10px; border-radius: 50%; align-self: center; justify-self: center; background: radial-gradient(circle at 35% 35%, hsl(var(--h) 90% 62%), hsl(var(--h) 90% 38%)); }
+    .die.rolling { animation: roll .75s cubic-bezier(.2,.8,.3,1.2); }
+    @keyframes roll {
+      0% { transform: rotate(0) scale(0.5) translateY(-20px); opacity: 0.3; }
+      55% { transform: rotate(560deg) scale(1.18); opacity: 1; }
+      100% { transform: rotate(720deg) scale(1); }
+    }
+    .die-tile button { margin-top: 8px; width: 100%; padding: 7px 4px; font-size: 13px; border-radius: 10px; box-shadow: none; }
+    .dice-all { margin-top: 12px; }
+
     /* victory */
     #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
     .victory { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; padding: 20px;
@@ -318,6 +342,11 @@
         </div>
       </div>
 
+      <div id="dice-area" class="glass">
+        <div class="dice-head"><h3>🎲 קוביות</h3><span class="muted" id="dice-note"></span></div>
+        <div class="dice-grid" id="dice-grid"></div>
+        <button class="btn-sun w100 dice-all" id="btn-roll-all">🎲 גלגל לכולם ביחד</button>
+      </div>
       <div id="me-container"></div>
       <div id="others-container"></div>
 
@@ -406,6 +435,8 @@
     let mode = null;                 // "online" | "local"
     let me = freshPlayer();
     let myBattle = null, myFight = null, myHelp = null;
+    let myRoll = null, myRollAll = null, selfPeer = null;
+    const lastAnim = {};
     let code = "", net = null;
     let localPlayers = [];
     let localBattle = null;          // { heroId, helpers, base, mod, hero }
@@ -640,7 +671,7 @@
         name: me.name, level: me.level, gear: me.gear,
         race: me.race, race2: me.half ? me.race2 : null, cls: me.cls, cls2: me.sup ? me.cls2 : null, sup: me.sup,
         potions: me.potions, curses: me.curses,
-        battle: myBattle, fight: myFight, help: myHelp
+        battle: myBattle, fight: myFight, help: myHelp, roll: myRoll, rollAll: myRollAll
       });
     }
 
@@ -653,7 +684,8 @@
       const out = [mine];
       if (!net) return out;
       for (const p of net.peers()) {
-        if ((p.isMe && p.sameTab) || p.kind !== "viewer") continue;
+        if (p.isMe && p.sameTab) { selfPeer = p.peer; continue; }
+        if (p.kind !== "viewer") continue;
         const pr = p.presence || {};
         const base = sanitizePlayer(pr);
         if (!base.name) continue;
@@ -662,7 +694,10 @@
           race2: base.half ? base.race2 : null, cls2: base.sup ? base.cls2 : null,
           battle: pr.battle && typeof pr.battle === "object" && typeof pr.battle.id === "string" ? { id: pr.battle.id.slice(0, 40), t: num(pr.battle.t, 0, 9e15) } : null,
           fight: pr.fight && typeof pr.fight === "object" && typeof pr.fight.id === "string" ? { id: pr.fight.id, base: num(pr.fight.base), mod: num(pr.fight.mod), hero: num(pr.fight.hero) } : null,
-          help: typeof pr.help === "string" ? pr.help : null
+          help: typeof pr.help === "string" ? pr.help : null,
+          roll: cleanRoll(pr.roll),
+          rollAll: pr.rollAll && typeof pr.rollAll === "object" && pr.rollAll.res && typeof pr.rollAll.res === "object"
+            ? { t: num(pr.rollAll.t, 0, 9e15), res: pr.rollAll.res } : null
         });
       }
       return out;
@@ -756,6 +791,76 @@
       if (!addToBattle(side === "hero" ? "hero" : "mod", pot.bonus)) return;
       t.potions = t.potions.filter(x => x.id !== itemId);
       changed();
+    }
+
+    // ---------- dice ----------
+    const d6 = () => 1 + Math.floor(Math.random() * 6);
+    function cleanRoll(r) { if (!r || typeof r !== "object") return null; const v = num(r.v, 0, 6); return v >= 1 ? { v, t: num(r.t, 0, 9e15) } : null; }
+    function rollOne(pid) {
+      const t = Date.now();
+      if (mode === "local") { const p = target(pid); if (!p) return; p.roll = { v: d6(), t }; }
+      else myRoll = { v: d6(), t };
+      changed();
+    }
+    function rollEveryone() {
+      const t = Date.now();
+      if (mode === "local") localPlayers.forEach(p => p.roll = { v: d6(), t });
+      else {
+        const res = {};
+        for (const p of getPlayers()) {
+          const k = p.isMe ? (selfPeer || "me") : p.key;
+          res[k] = d6();
+        }
+        myRollAll = { t, res, by: me.name };
+        myRoll = { v: res[selfPeer || "me"], t };
+      }
+      changed();
+    }
+    // latest die for each player: their own roll, or anyone's "roll for everyone" that's newer
+    function diceFor(players) {
+      const out = new Map();
+      for (const p of players) {
+        let best = mode === "local" ? (p.roll || null) : (p.isMe ? myRoll : p.roll);
+        if (best) best = { ...best, by: null };
+        if (mode !== "local") {
+          const k = p.isMe ? selfPeer : p.key;
+          for (const q of players) {
+            const ra = q.isMe ? myRollAll : q.rollAll;
+            if (!ra || !k) continue;
+            const v = num(ra.res[k], 0, 6);
+            if (v >= 1 && (!best || ra.t > best.t)) best = { v, t: ra.t, by: q.isMe ? null : q.name };
+          }
+        }
+        out.set(p, best);
+      }
+      return out;
+    }
+    const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+    function dieHTML(v, rolling) {
+      if (!v) return `<div class="die empty">?</div>`;
+      let cells = "";
+      for (let i = 0; i < 9; i++) cells += PIPS[v].includes(i) ? `<span class="pip" style="grid-area:${Math.floor(i / 3) + 1}/${i % 3 + 1}"></span>` : "";
+      return `<div class="die ${rolling ? "rolling" : ""}">${cells}</div>`;
+    }
+    function renderDice(players) {
+      const dice = diceFor(players);
+      const vals = [...dice.values()].filter(Boolean).map(d => d.v);
+      const max = vals.length > 1 ? Math.max(...vals) : 0;
+      $("dice-grid").innerHTML = players.map(p => {
+        const d = dice.get(p);
+        const animKey = (p.isMe ? "me" : p.key);
+        const rolling = d && d.t > (lastAnim[animKey] || 0);
+        if (d) lastAnim[animKey] = Math.max(lastAnim[animKey] || 0, d.t);
+        const canRoll = mode === "local" || p.isMe;
+        return `<div class="die-tile ${d && max && d.v === max ? "best" : ""}" style="--h:${hue(p.name)}">
+            ${dieHTML(d && d.v, rolling)}
+            <div class="who">${esc(p.name)}${p.isMe ? " (את/ה)" : ""}</div>
+            <div class="by">${d && d.by ? "גולגל ע״י " + esc(d.by) : ""}</div>
+            ${canRoll ? `<button class="btn-cool" data-action="roll" data-pid="${p.pid}">${p.isMe ? "גלגל שלי" : "גלגל"}</button>` : ""}
+          </div>`;
+      }).join("");
+      $("dice-area").style.display = players.length ? "block" : "none";
+      $("dice-note").textContent = max ? "🏅 הכי גבוה: " + max : "";
     }
 
     function addPlayer() {
@@ -948,6 +1053,7 @@
           + (others.length === 0 && net ? `<div class="waiting">מחכים לחברים… שתפו את הקוד <b>${esc(code)}</b></div>` : "");
       }
       renderBattle(battle);
+      renderDice(players);
       checkWinner(players);
     }
 
@@ -993,6 +1099,8 @@
       else if (a === "additem") addItem(pid, b.dataset.kind);
       else if (a === "delitem") removeItem(pid, b.dataset.kind, b.dataset.item);
       else if (a === "usepot") usePotion(pid, b.dataset.item, b.dataset.side);
+      else if (a === "roll") rollOne(pid);
+      else if (b.id === "btn-roll-all") rollEveryone();
       else if (b.dataset.toggle) {
         const t = target(pid); if (!t) return;
         if (b.dataset.toggle === "half") { t.half = !t.half; t.race2 = t.half ? (t.race === "elf" ? "dwarf" : "elf") : null; }
