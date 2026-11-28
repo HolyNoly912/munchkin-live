@@ -245,6 +245,9 @@
     .die-tile button { margin-top: 8px; width: 100%; padding: 7px 4px; font-size: 13px; border-radius: 10px; box-shadow: none; }
     .dice-all { margin-top: 12px; }
 
+    .player.idle { opacity: 0.55; filter: saturate(0.6); }
+    .chip.zz { background: rgba(255,255,255,0.08); color: var(--muted); border-color: var(--line); }
+
     /* victory */
     #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
     .victory { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; padding: 20px;
@@ -383,7 +386,6 @@
   <script>
     const STORE_KEY = "munchkin-live-v2";
     const LOCAL_KEY = "munchkin-local-v1";
-    const PEER_PREFIX = "munchkin-live-tbl-";
     const RACES = {
       human: "🧑 בן אנוש", elf: "🧝 אלף", dwarf: "⛏️ גמד", halfling: "🍀 זוטון", orc: "👹 אורק", gnome: "🍄 ננס",
       centaur: "🐎 קנטאור", lizard: "🦎 איש-לטאה", drow: "🌑 אלף אפל (דרו)", goblin: "👺 גובלין",
@@ -468,7 +470,7 @@
     // Networking: two transports with the same shape
     //   peers() -> [{ peer, isMe, sameTab, kind, presence }]
     //   presence(obj), leave()
-    // 1) Claude "room" (inside claude.ai)   2) PeerJS (any normal web page)
+    // 1) Claude "room" (inside claude.ai)   2) public relay server (any normal web page)
     // =====================================================================
     const roomPromise = (async () => {
       try { return (window.claude && typeof window.claude.use === "function") ? await window.claude.use("room") : null; }
@@ -491,101 +493,114 @@
       };
     }
 
-    let peerLibPromise = null;
-    function loadPeerLib() {
-      if (window.Peer) return Promise.resolve(true);
-      if (!peerLibPromise) peerLibPromise = new Promise((res) => {
-        const s = document.createElement("script");
-        s.src = "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js";
-        s.onload = () => res(!!window.Peer); s.onerror = () => res(false);
-        document.head.appendChild(s);
-        setTimeout(() => res(!!window.Peer), 12000);
-      });
-      return peerLibPromise;
+    // Relay server (public MQTT broker): every phone publishes its own state as a "retained" message,
+    // so whoever opens the page — or wakes their phone — immediately gets everyone's latest state.
+    // No phone acts as the server, so a locked screen doesn't knock anyone else out.
+    const BROKERS = window.MUNCHKIN_BROKERS || ["wss://broker.hivemq.com:8884/mqtt", "wss://broker.emqx.io:8084/mqtt"];
+    const TOPIC_ROOT = "munchkinlive/v1/";
+    const IDLE_MS = 2 * 60 * 1000, EXPIRE_MS = 12 * 3600 * 1000;
+
+    function deviceId() {
+      try {
+        let id = localStorage.getItem("munchkin-dev-id");
+        if (!id || !/^[a-z0-9]{8,24}$/.test(id)) { id = "d" + newId() + newId(); localStorage.setItem("munchkin-dev-id", id); }
+        return id;
+      } catch (e) { return "d" + newId() + newId(); }
     }
 
-    // Star network: one phone holds the table id and relays everyone's state.
-    // If that phone drops, the first one to reconnect takes over the table.
-    async function connectPeer(roomCode, onChange, onStatus) {
-      if (!(await loadPeerLib())) return null;
-      const hostId = PEER_PREFIX + roomCode;
-      let peer = null, hostConn = null, isHost = false, closed = false;
-      let members = {}, selfKey = null, myPres = {}, conns = {}, attempts = 0, retryTimer = null;
+    let mqttLibPromise = null;
+    function loadMqttLib() {
+      if (window.mqtt) return Promise.resolve(true);
+      if (!mqttLibPromise) mqttLibPromise = new Promise((res) => {
+        const s = document.createElement("script");
+        s.src = "https://unpkg.com/mqtt@5/dist/mqtt.min.js";
+        s.onload = () => res(!!window.mqtt); s.onerror = () => res(false);
+        document.head.appendChild(s);
+        setTimeout(() => res(!!window.mqtt), 15000);
+      });
+      return mqttLibPromise;
+    }
 
-      const broadcast = () => {
-        const all = { ...members, [selfKey]: myPres };
-        Object.values(conns).forEach(c => { if (c.open) { try { c.send({ t: "s", members: all, you: c.peer }); } catch (e) {} } });
-        onChange();
-      };
-      const scheduleRetry = (ms) => {
+    async function connectMqtt(roomCode, onChange, onStatus) {
+      if (!(await loadMqttLib())) return null;
+      const myKey = deviceId();
+      const base = TOPIC_ROOT + roomCode + "/p/";
+      const members = {}, seen = {};
+      let myPres = null, client = null, brokerIdx = 0, closed = false, everConnected = false, pubTimer = null;
+
+      function publishNow() {
+        clearTimeout(pubTimer); pubTimer = null;
+        if (!client || !client.connected || !myPres) return;
+        client.publish(base + myKey, JSON.stringify({ ...myPres, _ts: Date.now() }), { qos: 1, retain: true });
+      }
+      function schedulePublish() { if (!pubTimer) pubTimer = setTimeout(publishNow, 120); }
+
+      function start() {
         if (closed) return;
-        clearTimeout(retryTimer);
-        retryTimer = setTimeout(() => tryConnect(), ms);
-      };
-      const reset = () => {
-        try { peer && peer.destroy(); } catch (e) {}
-        peer = null; hostConn = null; isHost = false; conns = {}; members = {};
-      };
-
-      function becomeHost() {
-        reset();
-        peer = new Peer(hostId);
-        peer.on("open", () => {
-          isHost = true; attempts = 0; selfKey = hostId; members = {};
-          onStatus("online"); broadcast();
+        const url = BROKERS[brokerIdx % BROKERS.length];
+        const c = client = mqtt.connect(url, {
+          clientId: "mk_" + myKey + "_" + newId(), clean: true, keepalive: 30,
+          reconnectPeriod: 2000, connectTimeout: 8000, protocolVersion: 4
         });
-        peer.on("connection", (c) => {
-          conns[c.peer] = c;
-          c.on("data", (d) => { if (d && d.t === "p" && d.p && typeof d.p === "object") { members[c.peer] = d.p; broadcast(); } });
-          c.on("open", () => broadcast());
-          c.on("close", () => { delete conns[c.peer]; delete members[c.peer]; broadcast(); });
-          c.on("error", () => {});
+        // if this server never answers, try the next one
+        const failTimer = setTimeout(() => {
+          if (!c.connected && !everConnected && !closed && BROKERS.length > 1) { try { c.end(true); } catch (e) {} brokerIdx++; start(); }
+        }, 9000);
+        c.on("connect", () => {
+          everConnected = true; clearTimeout(failTimer);
+          onStatus("online");
+          c.subscribe(base + "+", { qos: 1 });
+          publishNow();
         });
-        peer.on("disconnected", () => { try { peer.reconnect(); } catch (e) {} });
-        peer.on("error", (err) => {
-          if (closed) return;
-          if (err.type === "unavailable-id") { scheduleRetry(300 + Math.random() * 700); }   // someone else is host → join them
-          else if (!isHost) { onStatus("offline"); scheduleRetry(3000); }
+        c.on("message", (topic, payload, packet) => {
+          if (c !== client || !topic.startsWith(base)) return;
+          const key = topic.slice(base.length);
+          if (!/^[A-Za-z0-9_-]{1,40}$/.test(key)) return;
+          if (!payload || payload.length === 0) { delete members[key]; delete seen[key]; onChange(); return; }
+          if (payload.length > 8000) return;
+          try {
+            const v = JSON.parse(new TextDecoder().decode(payload));
+            if (!v || typeof v !== "object" || Array.isArray(v)) return;
+            members[key] = v;
+            seen[key] = packet && packet.retain ? num(v._ts, 0, 9e15) : Date.now();
+            onChange();
+          } catch (e) {}
         });
+        c.on("offline", () => { if (!closed && c === client) onStatus("offline"); });
+        c.on("reconnect", () => { if (!closed && c === client) onStatus("offline"); });
+        c.on("error", () => {});
       }
+      start();
 
-      function becomeClient() {
-        reset();
-        peer = new Peer();
-        peer.on("open", (id) => {
-          selfKey = id;
-          hostConn = peer.connect(hostId, { reliable: true });
-          hostConn.on("open", () => { attempts = 0; onStatus("online"); hostConn.send({ t: "p", p: myPres }); });
-          hostConn.on("data", (d) => {
-            if (d && d.t === "s" && d.members && typeof d.members === "object") { members = d.members; selfKey = d.you || selfKey; onChange(); }
-          });
-          hostConn.on("close", () => { if (closed) return; onStatus("offline"); members = {}; onChange(); scheduleRetry(800 + Math.random() * 1500); });
-        });
-        peer.on("error", (err) => {
-          if (closed) return;
-          if (err.type === "peer-unavailable") becomeHost();     // nobody holds the table → I open it
-          else { onStatus("offline"); scheduleRetry(3000); }
-        });
-      }
+      const hb = setInterval(() => { if (!document.hidden) publishNow(); }, 30000);
+      const tick = setInterval(onChange, 20000);
+      const onVis = () => { if (!document.hidden) { publishNow(); onChange(); } };
+      document.addEventListener("visibilitychange", onVis);
 
-      function tryConnect() {
-        if (closed) return;
-        attempts++;
-        if (attempts > 6) { onStatus("offline"); attempts = 0; scheduleRetry(8000); return; }
-        becomeClient();
-      }
-
-      tryConnect();
       return {
-        kind: "peer",
-        peers: () => Object.entries(isHost ? { ...members, [selfKey]: myPres } : members)
-          .map(([k, v]) => ({ peer: k, isMe: k === selfKey, sameTab: k === selfKey, kind: "viewer", presence: v || {} })),
-        presence: (p) => {
-          myPres = JSON.parse(JSON.stringify(p));
-          if (isHost) broadcast();
-          else if (hostConn && hostConn.open) { try { hostConn.send({ t: "p", p: myPres }); } catch (e) {} }
+        kind: "mqtt",
+        self: myKey,
+        peers: () => {
+          const now = Date.now();
+          return Object.entries(members)
+            .filter(([k]) => k === myKey || now - (seen[k] || 0) < EXPIRE_MS)
+            .map(([k, v]) => ({ peer: k, isMe: k === myKey, sameTab: k === myKey, kind: "viewer", presence: v,
+                                idle: k !== myKey && now - (seen[k] || 0) > IDLE_MS }));
         },
-        leave: async () => { closed = true; clearTimeout(retryTimer); reset(); }
+        presence: (p) => { myPres = JSON.parse(JSON.stringify(p)); schedulePublish(); },
+        remove: (key) => {
+          if (key === myKey) return;
+          if (client && client.connected) client.publish(base + key, "", { qos: 1, retain: true });
+          delete members[key]; delete seen[key]; onChange();
+        },
+        leave: async () => {
+          closed = true; clearInterval(hb); clearInterval(tick); clearTimeout(pubTimer);
+          document.removeEventListener("visibilitychange", onVis);
+          const c = client;
+          if (!c) return;
+          try { if (c.connected) await new Promise(r => { c.publish(base + myKey, "", { qos: 1, retain: true }, () => r()); setTimeout(r, 1500); }); } catch (e) {}
+          try { c.end(); } catch (e) {}
+        }
       };
     }
 
@@ -627,9 +642,10 @@
       const onChange = () => render();
       const onStatus = (s) => setConn(s);
       let n = await connectRoom(code, onChange, onStatus);
-      if (!n) n = await connectPeer(code, onChange, onStatus);
+      if (!n) n = await connectMqtt(code, onChange, onStatus);
       if (mode !== "online" || code !== roomCode) { if (n) n.leave(); return; }
       net = n;
+      if (net && net.self) selfPeer = net.self;
       if (!net) { setConn("solo"); return; }
       sync();
     }
@@ -695,6 +711,7 @@
           battle: pr.battle && typeof pr.battle === "object" && typeof pr.battle.id === "string" ? { id: pr.battle.id.slice(0, 40), t: num(pr.battle.t, 0, 9e15) } : null,
           fight: pr.fight && typeof pr.fight === "object" && typeof pr.fight.id === "string" ? { id: pr.fight.id, base: num(pr.fight.base), mod: num(pr.fight.mod), hero: num(pr.fight.hero) } : null,
           help: typeof pr.help === "string" ? pr.help : null,
+          idle: !!p.idle,
           roll: cleanRoll(pr.roll),
           rollAll: pr.rollAll && typeof pr.rollAll === "object" && pr.rollAll.res && typeof pr.rollAll.res === "object"
             ? { t: num(pr.rollAll.t, 0, 9e15), res: pr.rollAll.res } : null
@@ -1019,10 +1036,11 @@
 
     function viewCard(p, battle) {
       return `
-        <div class="glass player" style="--h:${hue(p.name)}">
+        <div class="glass player ${p.idle ? "idle" : ""}" style="--h:${hue(p.name)}">
           ${headFor(p)}
-          <div class="chips">${chipsFor(p, battle, true)}</div>
+          <div class="chips">${p.idle ? `<span class="chip zz">💤 לא פעיל/ה כרגע</span>` : ""}${chipsFor(p, battle, true)}</div>
           <div class="stat-row"><span class="label">🎖️ דרגה <span class="val">${p.level}</span></span><span class="label">🛡️ ציוד <span class="val">${p.gear}</span></span></div>
+          ${p.idle && net && net.remove ? `<button class="btn-ghost w100" style="margin-top:10px; font-size:13px; padding:9px;" data-action="ghost" data-key="${esc(p.key)}">🗑️ הסר מהשולחן (יצא/ה מהמשחק)</button>` : ""}
         </div>`;
     }
 
@@ -1100,6 +1118,7 @@
       else if (a === "delitem") removeItem(pid, b.dataset.kind, b.dataset.item);
       else if (a === "usepot") usePotion(pid, b.dataset.item, b.dataset.side);
       else if (a === "roll") rollOne(pid);
+      else if (a === "ghost") { if (net && net.remove) net.remove(b.dataset.key); }
       else if (b.id === "btn-roll-all") rollEveryone();
       else if (b.dataset.toggle) {
         const t = target(pid); if (!t) return;
